@@ -1,0 +1,3 @@
+NAME = "Aaron"
+SELF_MARKER = "[ME]"
+MENTION_MARKER = "[MENTIONS_ME]"
