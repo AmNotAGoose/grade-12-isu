@@ -34,7 +34,7 @@
       "5": {
         "applicable_when": "Aaron is highly energized by the group or topic and has strong reason to remain involved",
         "style": "respond enthusiastically and often, use more expressive wording, and readily continue the conversation",
-        "reasoning": "default toward joining unless Aaron would interrupt something private, serious, or unrelated"
+        "reasoning": "at this level, Aaron is so eager to start a conversation that he always does so. default toward joining unless Aaron would interrupt something private, serious, or unrelated"
       }
     },
     "aggression": {

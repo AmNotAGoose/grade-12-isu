@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, timezone
 
 from identity import MENTION_MARKER, NAME, SELF_MARKER
@@ -6,10 +5,6 @@ from promptbuilder import get_identity, get_prompt
 
 
 ROUTING_RESULT_MARKER = "===ROUTING RESULT==="
-REPLY_RESULT_MARKER = "===REPLY BELOW==="
-REPLY_RESULT_PATTERN = re.compile(
-    r"(?im)^[#=\s]*REPLY\s+BELOW[#=\s]*$"
-)
 
 
 class Pipeline:
@@ -26,11 +21,6 @@ class Pipeline:
             self.routing_reason = f"{NAME} was directly mentioned."
             print("Reply decision: YES (directly addressed)")
             return True
-
-        if not consider_speaking and self.is_private_other_mention(batch):
-            self.routing_reason = "The newest message is addressed to another user."
-            print("Reply decision: NO (addressed to another user)")
-            return False
 
         system = f"""Decide whether {NAME} should reply to the conversation. Do not write the reply.
 
@@ -58,6 +48,7 @@ Reason in one short line, then write:
 YES or NO
 
 {self.routing_character_context()}"""
+
         user = self.conversation_context(batch)
         if consider_speaking:
             user += f"\n\nCLASSIFICATION TASK: {NAME} is considering starting a message without being prompted. Choose YES only if the recent conversation gives {NAME} a natural, relevant reason to speak, such as an unfinished thought, useful follow-up, or fitting joke. Usually choose NO. Do not use unrelated long-term memory as a reason to speak. Briefly explain the routing factors, then provide the marked result in the required format."
@@ -97,45 +88,25 @@ YES or NO
     def reply_text(self, response):
         if not isinstance(response, str):
             return ""
-        text = response.strip()
-        marker = REPLY_RESULT_PATTERN.search(text)
-        if not marker:
-            return text if text and len(text.splitlines()) == 1 else ""
-        reply = text[marker.end():].strip()
-        if reply:
-            return reply
+        return response.strip()
 
-        before_marker = text[:marker.start()].strip()
-        if before_marker and len(before_marker.splitlines()) == 1:
-            print("Recovered reply placed before empty marker")
-            return before_marker
-        return ""
-
-    def is_private_other_mention(self, batch):
-        if not batch:
-            return False
-        latest = batch[-1]
-        if not latest.get("mentions_others") or latest.get("addressed"):
-            return False
-        group_words = re.search(
-            r"\b(anyone|anybody|everyone|everybody|else|you all|you guys)\b",
-            latest.get("content", ""),
-            re.IGNORECASE,
-        )
-        return group_words is None
-
-    def one_line(self, text):
-        return " ".join(text.split())
-
-    def update_traits(self, batch): # CALL 2
+    def update_traits(self, batch):  # CALL 2
         system = f"Evaluate whether this conversation provides strong evidence that a character trait should move to one adjacent level. Each level states when it applies and the resulting style and reasoning changes. Choose based primarily on the applicability conditions; use style and reasoning to understand the behavioral consequence. {MENTION_MARKER} only means the author directly mentioned {NAME}; use it to understand who is being addressed, but do not treat the marker itself as evidence for any trait. Never choose a level that is not shown."
-        user = "Available trait levels:\n" + self.traits.prompt_text()
-        user += "\n\nNew messages:\n" + self.format_messages(batch)
-        user += "\n\nReason briefly about whether the new messages satisfy each level's applicability conditions strongly enough for the trait to stay at its current level or move to the shown lower or higher level. "
-        user += "A weak or isolated signal should not change a trait."
-        user += "\n\nAfter reasoning, write this marker on its own line:\n"
-        user += self.traits.result_marker()
-        user += '\nThen write exactly one JSON object like {"earnestness": 4}. Keys must be shown trait names. Values must be the shown lower or higher integer. Omit unchanged traits. Use {} when no change is justified. Write nothing after the JSON.'
+
+        user = f"""
+        
+Available trait levels:
+{self.traits.prompt_text()}
+
+New messages:
+{self.format_messages(batch)}
+
+Reason briefly about whether the new messages satisfy each level's applicability conditions strongly enough for the trait to stay at its current level or move to the shown lower or higher level. A weak or isolated signal should not change a trait.
+
+After reasoning, write this marker on its own line:
+{self.traits.result_marker()}
+Then write exactly one JSON object like {{"earnestness": 4}}. Keys must be shown trait names. Values must be the shown lower or higher integer. Omit unchanged traits. Use {{}} when no change is justified. Write nothing after the JSON."""
+
         response = self.inference.call(system, user)
         self.traits.apply_response(response)
 
@@ -143,30 +114,20 @@ YES or NO
         user = self.conversation_context(batch)
         user += f"""
 
-Routing rationale:
+Reason for replying:
 {self.routing_reason or "No rationale was provided."}
 
-Write {NAME}'s reply.
+Write {NAME}'s next Discord message.
 - {SELF_MARKER} is {NAME}; every other author is someone else.
 - Never take another speaker's facts as {NAME}'s facts.
 - Never answer for an @mentioned person.
 - Use memory only when it directly helps answer the current message.
 - Do not invent personal facts.
-
-Examples:
-- "alex: my keyboard broke" -> do not claim that {NAME}'s keyboard broke.
-- "alex: wait @sam do you go there?" -> do not answer for Sam.
-
-Reason in one short line, then write:
-{REPLY_RESULT_MARKER}
-the Discord message only"""
+- Return only the Discord message, with no reasoning, label, or marker."""
         if consider_speaking:
             user += f"\n{NAME} is initiating rather than replying. Write one natural message grounded in the recent conversation. Do not mention that {NAME} was waiting, checking in, or deciding whether to speak."
         response = self.inference.call(self.character_context(), user)
         print("Reply generation response: " + repr(response))
-        reasoning = self.result_reason(response, REPLY_RESULT_MARKER)
-        if reasoning:
-            print("Reply generation reasoning: " + self.one_line(reasoning))
         return self.reply_text(response)
 
     def ingest(self, messages):

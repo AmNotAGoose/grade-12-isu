@@ -18,6 +18,7 @@ def main():
 
     if not (groq_api_key and bot_owner_id and discord_token):
         print("Please input the information in secrets.toml! Read the README.md if you are confused.")
+        return
 
     inference = Inference(groq_api_key)
     memory = Memory(DATABASE_PATH)
