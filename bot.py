@@ -1,14 +1,11 @@
 import asyncio
-
 import discord
-
 from identity import MENTION_MARKER, NAME, SELF_MARKER
 
 
 INACTIVITY_SECONDS = 2
 CONSIDERATION_SECONDS = 300
 CHANNEL_HISTORY_LIMIT = 40
-BOT_MENTION_MARKER = MENTION_MARKER
 
 HELP_TEXT = f"{NAME} is a conversational Discord bot that follows one selected channel, remembers useful details, and responds as a consistent character.\n\n>set_channel - select the current channel as the only channel {NAME} watches and load its recent history (if any!)\n>clear - clear the selected channel and all memory\n>consider_speak - immediately let {NAME} consider starting a message\n>help - show this command list"
 STARTUP_MESSAGE = "bot is up. run `>help` anywhere I can see for commands."
@@ -179,7 +176,7 @@ class DiscordBotIntegration(discord.Client):
         content = message.content
         for user in message.mentions:
             if self.user and user.id == self.user.id:
-                replacement = BOT_MENTION_MARKER
+                replacement = MENTION_MARKER
             else:
                 replacement = "@" + user.display_name
             content = content.replace("<@" + str(user.id) + ">", replacement)

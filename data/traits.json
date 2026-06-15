@@ -1,13 +1,13 @@
 {
   "original_traits": {
-    "sociability": 3,
+    "sociability": 4,
     "aggression": 2,
     "earnestness": 3
   },
   "traits": {
     "sociability": 3,
-    "aggression": 2,
-    "earnestness": 3
+    "aggression": 1,
+    "earnestness": 1
   },
   "definitions": {
     "sociability": {
